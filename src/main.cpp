@@ -183,7 +183,7 @@ void loop() {
     BLEDevice::startAdvertising();
     active = 1;
   }
-  else{
+  else if(!active){
     esp_deep_sleep_start();
   }
 }
