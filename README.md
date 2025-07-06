@@ -1,7 +1,7 @@
 <img src="/img/icon.png" alt="icon" height=100/>
 
 ### SteadyHaystack
-SteadyHaystack is a ESP32-C3 firmware based on https://github.com/liucoj/OHS-Arduino/blame/main/OpenHS.ino to implement a motion sensor and make a stealthy OpenHaystack-based bicycle tracker. https://github.com/seemoo-lab/openhaystack
+SteadyHaystack is a ESP32-C6 firmware based on https://github.com/liucoj/OHS-Arduino/blame/main/OpenHS.ino to implement a motion sensor and make a stealthy OpenHaystack-based bicycle tracker. https://github.com/seemoo-lab/openhaystack
 
 ## But why?
 Idea came to me after a tweet from Pavel Zhovner, the CEO of Flipper devices, in which he describes an "undetectable" airtag with a motion sensor, that activates after a not moving for 5 hours. I've decided to make a similar device, but instead use a cheap microcontroller and OpenHaystack.
