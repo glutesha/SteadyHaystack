@@ -4,6 +4,10 @@
 #include <BLEServer.h>
 #include <BLEUtils.h>
 
+#include <Adafruit_MPU6050.h>
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+
 #include "esp_bt.h"
 #include "esp_bt_defs.h"
 #include "esp_bt_main.h"
@@ -11,6 +15,19 @@
 #include "esp_gatt_defs.h"
 #include "esp_gattc_api.h"
 #include "esp_log.h"
+
+#define SCL 7
+#define SDA 6
+#define LED 15
+
+#define ACTIVATION_SECONDS 60
+#define uS_TO_S_FACTOR 1000000ULL  
+#define SLEEP_SECONDS 5 
+
+Adafruit_MPU6050 mpu;
+
+RTC_DATA_ATTR int activation = 0;
+RTC_DATA_ATTR bool active = 0;
 
 //Public Key (Set your own)
 uint8_t public_key[28] = {
@@ -107,7 +124,24 @@ void set_payload_from_key(uint8_t *payload, uint8_t *public_key) {
 }
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
+  Wire.begin(SDA, SCL);
+
+  pinMode(LED, OUTPUT);
+  if (!mpu.begin()) {
+    Serial.println("Failed to find MPU6050 chip");
+  }
+  else{
+    Serial.println("MPU6050 Found!");
+  }
+  mpu.setHighPassFilter(MPU6050_HIGHPASS_0_63_HZ);
+  mpu.setMotionDetectionThreshold(1);
+  mpu.setMotionDetectionDuration(20);
+  mpu.setInterruptPinLatch(true);	
+  mpu.setInterruptPinPolarity(true);
+  mpu.setMotionInterrupt(true);
+
+  esp_sleep_enable_timer_wakeup(SLEEP_SECONDS * uS_TO_S_FACTOR);
 
   set_addr_from_key(rnd_addr, public_key);
   set_payload_from_key(adv_data, public_key);
@@ -129,8 +163,27 @@ void setup() {
   pAdvertising->setMinInterval(0x0640);
   pAdvertising->setAdvertisementData(advertisementData);
 
-  BLEDevice::startAdvertising();
 }
 
 void loop() {
+  if(!active && mpu.getMotionInterruptStatus()) {
+    sensors_event_t a, g, temp;
+    mpu.getEvent(&a, &g, &temp);
+    Serial.println("Moved");
+    digitalWrite(LED, HIGH);
+    delay(100);
+    digitalWrite(LED, LOW);
+    activation = 0;
+  }
+  else{
+    activation += SLEEP_SECONDS;
+  } 
+
+  if(!active && activation >= ACTIVATION_SECONDS){
+    BLEDevice::startAdvertising();
+    active = 1;
+  }
+  else{
+    esp_deep_sleep_start();
+  }
 }
