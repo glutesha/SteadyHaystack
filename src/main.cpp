@@ -18,6 +18,7 @@
 
 #define SCL 7
 #define SDA 6
+#define GYRO 8
 #define LED 15
 
 #define ACTIVATION_SECONDS 60
@@ -124,10 +125,13 @@ void set_payload_from_key(uint8_t *payload, uint8_t *public_key) {
 }
 
 void setup() {
+  pinMode(LED, OUTPUT);
+  pinMode(GYRO, OUTPUT);
+  digitalWrite(GYRO, HIGH);
+
   Serial.begin(9600);
   Wire.begin(SDA, SCL);
 
-  pinMode(LED, OUTPUT);
   if (!mpu.begin()) {
     Serial.println("Failed to find MPU6050 chip");
   }
@@ -181,6 +185,7 @@ void loop() {
 
   if(!active && activation >= ACTIVATION_SECONDS){
     BLEDevice::startAdvertising();
+    digitalWrite(GYRO, LOW);
     active = 1;
   }
   else if(!active){
