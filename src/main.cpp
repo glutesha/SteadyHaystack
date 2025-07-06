@@ -18,7 +18,7 @@
 
 #define SCL 7
 #define SDA 6
-#define GYRO 8
+#define GYRO_POWER 8
 #define LED 15
 
 #define ACTIVATION_SECONDS 60
@@ -126,8 +126,8 @@ void set_payload_from_key(uint8_t *payload, uint8_t *public_key) {
 
 void setup() {
   pinMode(LED, OUTPUT);
-  pinMode(GYRO, OUTPUT);
-  digitalWrite(GYRO, HIGH);
+  pinMode(GYRO_POWER, OUTPUT);
+  digitalWrite(GYRO_POWER, HIGH);
 
   Serial.begin(9600);
   Wire.begin(SDA, SCL);
@@ -185,7 +185,7 @@ void loop() {
 
   if(!active && activation >= ACTIVATION_SECONDS){
     BLEDevice::startAdvertising();
-    digitalWrite(GYRO, LOW);
+    digitalWrite(GYRO_POWER, LOW);
     active = 1;
   }
   else if(!active){
