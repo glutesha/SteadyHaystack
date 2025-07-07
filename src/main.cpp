@@ -186,7 +186,7 @@ void setup() {
   
   if(active){
     BLEDevice::startAdvertising();
-    vTaskDelay(100);
+    vTaskDelay(200);
   }
 
   esp_deep_sleep_start();
