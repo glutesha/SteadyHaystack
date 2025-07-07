@@ -23,7 +23,7 @@
 
 #define ACTIVATION_SECONDS 60
 #define uS_TO_S_FACTOR 1000000ULL  
-#define SLEEP_SECONDS 5 
+#define SLEEP_SECONDS 1
 
 Adafruit_MPU6050 mpu;
 
@@ -32,14 +32,12 @@ RTC_DATA_ATTR bool active = 0;
 
 //Public Key (Set your own)
 uint8_t public_key[28] = {
-    0xb8, 0x0e, 0x4a, 0x26, 0xba, 0xd6, 0xf3, 0x2e, 0x5a, 0xf6, 0x75, 0xa4,
-    0x20, 0xa8, 0x70, 0xf6, 0x0b, 0xf5, 0xa9, 0xee, 0xb6, 0xef, 0xea, 0x0a,
-    0x18, 0x7e, 0xb7, 0xda};
-
+    0x20, 0xB7, 0xA5, 0xCE, 0x10, 0x6D, 0xD9, 0xA8, 0x2D, 0x2E, 0xFA, 0xCA, 0x39, 0x45, 0x15, 0x1D, 
+    0xDC, 0x69, 0x2F, 0xE7, 0x3E, 0x0F, 0x27, 0x66, 0x18, 0x6F, 0x43, 0x64,};
 
 // https://github.com/liucoj/OHS-Arduino/blob/main/OpenHS.ino
 /** Random device address */
-esp_bd_addr_t rnd_addr = {0xDE, 0xAD, 0xBE, 0xEF, 0x13, 0x37};
+esp_bd_addr_t rnd_addr = { 0xFF, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF };
 
 /** Advertisement payload */
 uint8_t adv_data[31] = {
@@ -61,21 +59,16 @@ static esp_ble_adv_params_t ble_adv_params = {
     // Minimum advertising interval for undirected and low duty cycle
     // directed advertising. Range: 0x0020 to 0x4000 Default: N = 0x0800
     // (1.28 second) Time = N * 0.625 msec Time Range: 20 ms to 10.24 sec
-    .adv_int_min = 0x0640, // 1s
+    .adv_int_min = 0x0021, // 20ms
     // Advertising max interval:
     // Maximum advertising interval for undirected and low duty cycle
     // directed advertising. Range: 0x0020 to 0x4000 Default: N = 0x0800
     // (1.28 second) Time = N * 0.625 msec Time Range: 20 ms to 10.24 sec
-    .adv_int_max = 0x0C80, // 2s
+    .adv_int_max = 0x0021, // 20ms
     // Advertisement type
     .adv_type = ADV_TYPE_NONCONN_IND,
     // Use the random address
     .own_addr_type = BLE_ADDR_TYPE_RANDOM,
-    .peer_addr = {
-        0x00,
-    },
-    .peer_addr_type = BLE_ADDR_TYPE_PUBLIC,
-
     // All channels
     .channel_map = ADV_CHNL_ALL,
     // Allow both scan and connection requests from anyone.
@@ -112,9 +105,12 @@ void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param) {
 }
 
 void set_addr_from_key(esp_bd_addr_t addr, uint8_t *public_key) {
-  for(int i = 0; i <= 5; i++){
-    addr[i] = public_key[i];
-  }
+  addr[0] = public_key[0] | 0b11000000;
+  addr[1] = public_key[1];
+  addr[2] = public_key[2];
+  addr[3] = public_key[3];
+  addr[4] = public_key[4];
+  addr[5] = public_key[5];
 }
 
 void set_payload_from_key(uint8_t *payload, uint8_t *public_key) {
@@ -127,23 +123,25 @@ void set_payload_from_key(uint8_t *payload, uint8_t *public_key) {
 void setup() {
   pinMode(LED, OUTPUT);
   pinMode(GYRO_POWER, OUTPUT);
-  digitalWrite(GYRO_POWER, HIGH);
-
   Serial.begin(9600);
-  Wire.begin(SDA, SCL);
 
-  if (!mpu.begin()) {
-    Serial.println("Failed to find MPU6050 chip");
+  if(!active){
+    digitalWrite(GYRO_POWER, HIGH);
+    Wire.begin(SDA, SCL);
+
+    if (!mpu.begin()) {
+      Serial.println("Failed to find MPU6050 chip");
+    }
+    else{
+      Serial.println("MPU6050 Found!");
+    }
+    mpu.setHighPassFilter(MPU6050_HIGHPASS_0_63_HZ);
+    mpu.setMotionDetectionThreshold(1);
+    mpu.setMotionDetectionDuration(20);
+    mpu.setInterruptPinLatch(true);	
+    mpu.setInterruptPinPolarity(true);
+    mpu.setMotionInterrupt(true);
   }
-  else{
-    Serial.println("MPU6050 Found!");
-  }
-  mpu.setHighPassFilter(MPU6050_HIGHPASS_0_63_HZ);
-  mpu.setMotionDetectionThreshold(1);
-  mpu.setMotionDetectionDuration(20);
-  mpu.setInterruptPinLatch(true);	
-  mpu.setInterruptPinPolarity(true);
-  mpu.setMotionInterrupt(true);
 
   esp_sleep_enable_timer_wakeup(SLEEP_SECONDS * uS_TO_S_FACTOR);
 
@@ -162,14 +160,11 @@ void setup() {
   advertisementData.setManufacturerData(String((char *)adv_data + 2, sizeof(adv_data) - 2));
 
   BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
-  pAdvertising->setScanResponse(true);
+  pAdvertising->setScanResponse(false);
   pAdvertising->setMaxInterval(0x0C80);
   pAdvertising->setMinInterval(0x0640);
   pAdvertising->setAdvertisementData(advertisementData);
 
-}
-
-void loop() {
   if(!active && mpu.getMotionInterruptStatus()) {
     sensors_event_t a, g, temp;
     mpu.getEvent(&a, &g, &temp);
@@ -188,7 +183,13 @@ void loop() {
     digitalWrite(GYRO_POWER, LOW);
     active = 1;
   }
-  else if(!active){
-    esp_deep_sleep_start();
+  
+  if(active){
+    BLEDevice::startAdvertising();
+    vTaskDelay(100);
   }
+
+  esp_deep_sleep_start();
 }
+
+void loop() {}
