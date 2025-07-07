@@ -23,7 +23,7 @@
 
 #define ACTIVATION_SECONDS 60
 #define uS_TO_S_FACTOR 1000000ULL  
-#define SLEEP_SECONDS 1
+#define SLEEP_SECONDS 1.25
 
 Adafruit_MPU6050 mpu;
 
@@ -45,12 +45,12 @@ uint8_t adv_data[31] = {
     0xff, /* Manufacturer Specific Data (type 0xff) */
     0x4c, 0x00, /* Company ID (Apple) */
     0x12, 0x19, /* Offline Finding type and length */
-    0x00, /* State */
+    0x10, /* State */
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, /* First two bits */
-    0x00, /* Hint (0x00) */
+    0x02, /* Hint (0x00) */
 };
 
 /* https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/bluetooth/esp_gap_ble.html#_CPPv420esp_ble_adv_params_t */
@@ -66,7 +66,7 @@ static esp_ble_adv_params_t ble_adv_params = {
     // (1.28 second) Time = N * 0.625 msec Time Range: 20 ms to 10.24 sec
     .adv_int_max = 0x0021, // 20ms
     // Advertisement type
-    .adv_type = ADV_TYPE_NONCONN_IND,
+    .adv_type = ADV_TYPE_IND,
     // Use the random address
     .own_addr_type = BLE_ADDR_TYPE_RANDOM,
     // All channels
@@ -124,7 +124,6 @@ void setup() {
   pinMode(LED, OUTPUT);
   pinMode(GYRO_POWER, OUTPUT);
   Serial.begin(9600);
-
   esp_sleep_enable_timer_wakeup(SLEEP_SECONDS * uS_TO_S_FACTOR);
 
   if(!active){
@@ -186,7 +185,7 @@ void setup() {
     pAdvertising->setMinInterval(0x0640);
     pAdvertising->setAdvertisementData(advertisementData);
     BLEDevice::startAdvertising();
-    vTaskDelay(500);
+    vTaskDelay(30000);
   }
     
   esp_deep_sleep_start();
