@@ -125,6 +125,8 @@ void setup() {
   pinMode(GYRO_POWER, OUTPUT);
   Serial.begin(9600);
 
+  esp_sleep_enable_timer_wakeup(SLEEP_SECONDS * uS_TO_S_FACTOR);
+
   if(!active){
     digitalWrite(GYRO_POWER, HIGH);
     Wire.begin(SDA, SCL);
@@ -141,54 +143,52 @@ void setup() {
     mpu.setInterruptPinLatch(true);	
     mpu.setInterruptPinPolarity(true);
     mpu.setMotionInterrupt(true);
-  }
 
-  esp_sleep_enable_timer_wakeup(SLEEP_SECONDS * uS_TO_S_FACTOR);
-
-  set_addr_from_key(rnd_addr, public_key);
-  set_payload_from_key(adv_data, public_key);
-
-  BLEDevice::init("");
-  BLEDevice::setCustomGapHandler(esp_gap_cb);
-
-  esp_err_t status;
-  if ((status = esp_ble_gap_set_rand_addr(rnd_addr)) != ESP_OK) {
-    Serial.printf("Couldn't set random address: %s", esp_err_to_name(status));
-  }
-
-  BLEAdvertisementData advertisementData = BLEAdvertisementData();
-  advertisementData.setManufacturerData(String((char *)adv_data + 2, sizeof(adv_data) - 2));
-
-  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
-  pAdvertising->setScanResponse(false);
-  pAdvertising->setMaxInterval(0x0C80);
-  pAdvertising->setMinInterval(0x0640);
-  pAdvertising->setAdvertisementData(advertisementData);
-
-  if(!active && mpu.getMotionInterruptStatus()) {
-    sensors_event_t a, g, temp;
-    mpu.getEvent(&a, &g, &temp);
-    Serial.println("Moved");
-    digitalWrite(LED, HIGH);
     delay(100);
-    digitalWrite(LED, LOW);
-    activation = 0;
-  }
-  else{
-    activation += SLEEP_SECONDS;
-  } 
 
-  if(!active && activation >= ACTIVATION_SECONDS){
-    BLEDevice::startAdvertising();
-    digitalWrite(GYRO_POWER, LOW);
-    active = 1;
+    if(mpu.getMotionInterruptStatus()) {
+      sensors_event_t a, g, temp;
+      mpu.getEvent(&a, &g, &temp);
+      Serial.println("Moved");
+      digitalWrite(LED, HIGH);
+      delay(100);
+      digitalWrite(LED, LOW);
+      activation = 0;
+    }
+    else{
+      activation += SLEEP_SECONDS;
+    } 
+
+    if(activation >= ACTIVATION_SECONDS){
+      digitalWrite(GYRO_POWER, LOW);
+      active = 1;
+    }
   }
   
-  if(active){
-    BLEDevice::startAdvertising();
-    vTaskDelay(200);
-  }
+  else {
+    set_addr_from_key(rnd_addr, public_key);
+    set_payload_from_key(adv_data, public_key);
 
+    BLEDevice::init("");
+    BLEDevice::setCustomGapHandler(esp_gap_cb);
+
+    esp_err_t status;
+    if ((status = esp_ble_gap_set_rand_addr(rnd_addr)) != ESP_OK) {
+      Serial.printf("Couldn't set random address: %s", esp_err_to_name(status));
+    }
+
+    BLEAdvertisementData advertisementData = BLEAdvertisementData();
+    advertisementData.setManufacturerData(String((char *)adv_data + 2, sizeof(adv_data) - 2));
+
+    BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
+    pAdvertising->setScanResponse(false);
+    pAdvertising->setMaxInterval(0x0C80);
+    pAdvertising->setMinInterval(0x0640);
+    pAdvertising->setAdvertisementData(advertisementData);
+    BLEDevice::startAdvertising();
+    vTaskDelay(500);
+  }
+    
   esp_deep_sleep_start();
 }
 
